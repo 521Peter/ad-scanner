@@ -274,47 +274,74 @@
       max-height: 0;
       transition: max-height 300ms cubic-bezier(0.4, 0, 0.2, 1);
     }
-    .breakdown-section.open { max-height: 400px; }
+    .breakdown-section.open { max-height: 600px; }
     .breakdown-inner {
       padding: 0 18px 12px;
+    }
+    .breakdown-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 8px;
+      padding-top: 6px;
     }
     .breakdown-title {
       font-size: 11px; font-weight: 500;
       text-transform: uppercase; letter-spacing: 0.8px;
       color: var(--text-muted);
-      margin-bottom: 8px;
-      padding-top: 4px;
     }
-    .type-row {
-      display: flex; align-items: center; gap: 10px;
-      margin-bottom: 6px;
+    .breakdown-filled-stat {
+      font-size: 10px;
+      font-family: 'Fira Code', monospace;
+      color: var(--text-secondary);
     }
-    .type-name {
-      font-size: 12px; color: var(--text-secondary);
-      width: 96px; flex-shrink: 0;
+
+    /* ── Ad Items List ── */
+    .ad-items-list {
+      display: flex; flex-direction: column; gap: 4px;
+      max-height: 220px;
+      overflow-y: auto;
+      padding-right: 2px;
+    }
+    .ad-items-list::-webkit-scrollbar { width: 3px; }
+    .ad-items-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .ad-item {
+      display: flex; align-items: center; gap: 7px;
+      padding: 5px 8px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      transition: border-color 150ms;
+    }
+    .ad-item:hover { border-color: var(--border-hover); }
+
+    .ad-status-dot {
+      width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+    }
+    .dot-filled { background: #22C55E; box-shadow: 0 0 5px rgba(34,197,94,0.5); }
+    .dot-empty  { background: var(--text-muted); }
+
+    .ad-item-info {
+      flex: 1; display: flex; align-items: center; gap: 5px; min-width: 0;
+    }
+    .ad-item-index {
+      font-size: 10px; font-family: 'Fira Code', monospace;
+      color: var(--text-muted); flex-shrink: 0;
+    }
+    .ad-item-type {
+      font-size: 11px; color: var(--text-secondary);
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-    .type-bar-wrap {
-      flex: 1;
-      height: 4px;
-      background: rgba(255,255,255,0.05);
-      border-radius: 2px;
-      overflow: hidden;
+    .ad-item-size {
+      font-size: 10px; font-family: 'Fira Code', monospace;
+      color: var(--text-muted); flex-shrink: 0; min-width: 58px;
+      text-align: right;
     }
-    .type-bar {
-      height: 100%; border-radius: 2px;
-      width: 0;
-      transition: width 600ms cubic-bezier(0.34, 1.56, 0.64, 1);
+    .ad-item-badge {
+      font-size: 10px; padding: 1px 5px;
+      border-radius: 3px; flex-shrink: 0;
     }
-    .type-count {
-      font-size: 12px; font-weight: 600;
-      font-family: 'Fira Code', monospace;
-      width: 20px; text-align: right;
-      flex-shrink: 0;
-    }
-    .taboola-color { background: var(--taboola); }
-    .adsense-color { background: var(--adsense); }
-    .adx-color     { background: var(--adx); }
+    .badge-filled { color: #22C55E; background: rgba(34,197,94,0.1); }
+    .badge-empty  { color: var(--text-muted); background: rgba(255,255,255,0.05); }
 
     /* ── Empty / No Ads ── */
     .empty-state {

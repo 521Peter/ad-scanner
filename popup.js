@@ -114,6 +114,11 @@ function renderResults(data) {
     return;
   }
 
+  // 计算各平台已展示广告数
+  const tabFilledCount = (taboola.items || []).filter((it) => it.filled).length;
+  const adsFilledCount = (adsense.items || []).filter((it) => it.filled).length;
+  const adxFilledCount = (adx.items || []).filter((it) => it.filled).length;
+
   // Build HTML
   const html = `
     <div class="divider"></div>
@@ -146,15 +151,15 @@ function renderResults(data) {
 
     <!-- Platform Cards -->
     <div class="platform-grid">
-      ${makePlatformCard("taboola", "Taboola", taboola.count, taboola.types)}
-      ${makePlatformCard("adsense", "AdSense", adsense.count, adsense.types)}
-      ${makePlatformCard("adx", "AdX / GAM", adx.count, adx.types)}
+      ${makePlatformCard("taboola", "Taboola", taboola.count, tabFilledCount)}
+      ${makePlatformCard("adsense", "AdSense", adsense.count, adsFilledCount)}
+      ${makePlatformCard("adx", "AdX / GAM", adx.count, adxFilledCount)}
     </div>
 
     <!-- Detail Breakdowns -->
-    ${makeBreakdown("taboola", taboola.types, taboola.count)}
-    ${makeBreakdown("adsense", adsense.types, adsense.count)}
-    ${makeBreakdown("adx", adx.types, adx.count)}
+    ${makeBreakdown("taboola", taboola.items || [], taboola.count)}
+    ${makeBreakdown("adsense", adsense.items || [], adsense.count)}
+    ${makeBreakdown("adx", adx.items || [], adx.count)}
 
     <!-- Footer -->
     <div class="footer">
@@ -183,9 +188,6 @@ function renderResults(data) {
         total >= 1 ? Math.min(circumference * 0.9, circumference) : 0;
       ring.style.strokeDashoffset = circumference - filled;
     }
-
-    // Animate type bars
-    animateAllBars();
   });
 
   // Attach card click handlers
@@ -209,8 +211,6 @@ function renderResults(data) {
         section.classList.add("open");
         card.classList.add("active");
         openSection = platform;
-        // Re-animate bars in this section
-        setTimeout(() => animateBarsIn(platform), 30);
       } else {
         openSection = null;
       }
@@ -218,31 +218,46 @@ function renderResults(data) {
   });
 }
 
-function makePlatformCard(platform, label, count, types) {
-  const topType = getTopType(types);
+function makePlatformCard(platform, label, count, filledCount) {
+  const subText = count === 0 ? "无" : `${filledCount}/${count} 已展示`;
   return `
     <div class="platform-card ${platform}" id="card-${platform}" role="button" tabindex="0" aria-label="${label} 广告详情">
       <div class="platform-name">${label}</div>
       <div class="platform-count">${count}</div>
-      <div class="platform-sub">${topType || (count === 0 ? "无" : "—")}</div>
+      <div class="platform-sub">${subText}</div>
       <svg class="platform-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="6 9 12 15 18 9"/>
       </svg>
     </div>`;
 }
 
-function makeBreakdown(platform, types, total) {
+function makeBreakdown(platform, items, total) {
   if (total === 0) return "";
-  const entries = Object.entries(types).sort((a, b) => b[1] - a[1]);
-  const rows = entries
+
+  const platformLabel =
+    platform === "taboola"
+      ? "Taboola"
+      : platform === "adsense"
+        ? "AdSense"
+        : "AdX / GAM";
+
+  const filledCount = items.filter((it) => it.filled).length;
+
+  const itemRows = items
     .map(
-      ([name, count]) => `
-    <div class="type-row">
-      <span class="type-name">${name}</span>
-      <div class="type-bar-wrap">
-        <div class="type-bar ${platform}-color" data-target="${((count / total) * 100).toFixed(0)}" style="width:0"></div>
+      (item) => `
+    <div class="ad-item">
+      <span class="ad-status-dot ${item.filled ? "dot-filled" : "dot-empty"}"></span>
+      <div class="ad-item-info">
+        <span class="ad-item-index">#${item.index}</span>
+        <span class="ad-item-type">${item.type}</span>
       </div>
-      <span class="type-count" style="color:var(--${platform})">${count}</span>
+      <span class="ad-item-size">
+        ${item.width > 0 && item.height > 0 ? `${item.width}×${item.height}` : "—"}
+      </span>
+      <span class="ad-item-badge ${item.filled ? "badge-filled" : "badge-empty"}">
+        ${item.filled ? "已展示" : "未展示"}
+      </span>
     </div>`,
     )
     .join("");
@@ -250,8 +265,13 @@ function makeBreakdown(platform, types, total) {
   return `
     <div class="breakdown-section" id="breakdown-${platform}">
       <div class="breakdown-inner">
-        <div class="breakdown-title">${platform === "taboola" ? "Taboola" : platform === "adsense" ? "AdSense" : "AdX / GAM"} 广告类型明细</div>
-        ${rows}
+        <div class="breakdown-header">
+          <div class="breakdown-title">${platformLabel} 广告明细</div>
+          <div class="breakdown-filled-stat">${filledCount}/${total} 已展示</div>
+        </div>
+        <div class="ad-items-list">
+          ${itemRows}
+        </div>
       </div>
     </div>`;
 }
@@ -275,29 +295,6 @@ function animateCounter(id, from, to, duration) {
   requestAnimationFrame(step);
 }
 
-function animateAllBars() {
-  document.querySelectorAll(".type-bar").forEach((bar) => {
-    const target = bar.dataset.target;
-    setTimeout(() => {
-      bar.style.width = target + "%";
-    }, 100);
-  });
-}
-
-function animateBarsIn(platform) {
-  const section = document.getElementById(`breakdown-${platform}`);
-  if (!section) return;
-  section.querySelectorAll(".type-bar").forEach((bar) => {
-    bar.style.width = "0";
-    const target = bar.dataset.target;
-    requestAnimationFrame(() => {
-      setTimeout(() => {
-        bar.style.width = target + "%";
-      }, 50);
-    });
-  });
-}
-
 // ── Page Scan Function (injected into tab) ────────────────────────
 /**
  * This function runs in the context of the scanned page (world: MAIN).
@@ -305,62 +302,38 @@ function animateBarsIn(platform) {
  */
 function scanAdsOnPage() {
   const results = {
-    taboola: { count: 0, types: {} },
-    adsense: { count: 0, types: {} },
-    adx: { count: 0, types: {} },
+    taboola: { count: 0, types: {}, items: [] },
+    adsense: { count: 0, types: {}, items: [] },
+    adx: { count: 0, types: {}, items: [] },
     total: 0,
   };
 
   // ── TABOOLA ──────────────────────────────────────────────────────
-  const taboolaSet = new Set();
+  // 使用 [data-item-thumb] 选择器查找所有 Taboola 广告缩略图项
+  const taboolaThumbEls = document.querySelectorAll(
+    `[data-item-thumb][data-item-syndicated="true"]`,
+  );
 
-  const tabSelectors = [
-    '[id*="taboola"]',
-    // '[class*="taboola"]',
-    // "._taboola",
-    // ".tbl-feed-module",
-    // '[id^="tbl_"]',
-    // '[data-widget-id][class*="tab"]',
-  ];
+  taboolaThumbEls.forEach((el, i) => {
+    const rect = el.getBoundingClientRect();
+    const w = Math.round(rect.width);
+    const h = Math.round(rect.height);
+    const visible = w > 0 && h > 0;
 
-  tabSelectors.forEach((sel) => {
-    try {
-      document.querySelectorAll(sel).forEach((el) => {
-        const excludeTags = ["SCRIPT", "NOSCRIPT", "META", "STYLE"];
-        if (!excludeTags.includes(el.tagName)) {
-          taboolaSet.add(el);
-        }
-      });
-    } catch (_) {}
-  });
+    // 判断是否已填充：有尺寸且图片已加载
+    const img = el.querySelector("img");
+    const filled = visible && (!img || (img.complete && img.naturalWidth > 0));
 
-  // Deduplicate: keep only top-level Taboola containers
-  const taboolaFiltered = [...taboolaSet].filter((el) => {
-    return ![...taboolaSet].some(
-      (parent) => parent !== el && parent.contains(el),
-    );
-  });
+    const type = el.querySelector("video") ? "Video" : "Native";
 
-  console.warn("Taboola candidates:", taboolaFiltered);
-
-  taboolaFiltered.forEach((el) => {
-    let type = "Native";
-    const id = (el.id || "").toLowerCase();
-    const cls = (
-      typeof el.className === "string" ? el.className : ""
-    ).toLowerCase();
-
-    if (id.includes("video") || cls.includes("video")) {
-      type = "Video";
-    } else if (id.includes("below") || id.includes("article")) {
-      type = "Mid-Article";
-    } else if (
-      el.querySelectorAll('[class*="item"], [class*="card"], [class*="thumb"]')
-        .length >= 3
-    ) {
-      type = "Feed Native";
-    }
-
+    results.taboola.items.push({
+      index: i + 1,
+      type,
+      width: w,
+      height: h,
+      filled,
+      visible,
+    });
     results.taboola.count++;
     results.taboola.types[type] = (results.taboola.types[type] || 0) + 1;
   });
@@ -372,13 +345,21 @@ function scanAdsOnPage() {
         const modes = window._taboola.filter(
           (cmd) => cmd && cmd.mode && cmd.container,
         );
-        modes.forEach((cmd) => {
+        modes.forEach((cmd, i) => {
           const mode = (cmd.mode || "").toLowerCase();
           const type = mode.includes("video")
             ? "Video"
             : mode.includes("thumbnails")
               ? "Thumbnail"
               : "Native";
+          results.taboola.items.push({
+            index: i + 1,
+            type,
+            width: 0,
+            height: 0,
+            filled: false,
+            visible: false,
+          });
           results.taboola.count++;
           results.taboola.types[type] = (results.taboola.types[type] || 0) + 1;
         });
@@ -387,16 +368,25 @@ function scanAdsOnPage() {
   }
 
   // ── ADSENSE ───────────────────────────────────────────────────────
-  const counted = new Set();
-
-  document.querySelectorAll("ins.adsbygoogle").forEach((el) => {
-    counted.add(el);
+  document.querySelectorAll("ins.adsbygoogle").forEach((el, i) => {
     const fmt = (el.getAttribute("data-ad-format") || "").toLowerCase();
     const fwr = el.getAttribute("data-full-width-responsive");
+    const adStatus = el.getAttribute("data-ad-status");
+
+    const rect = el.getBoundingClientRect();
     const w =
-      parseInt(el.style.width) || parseInt(el.getAttribute("width")) || 0;
+      Math.round(rect.width) ||
+      parseInt(el.style.width) ||
+      parseInt(el.getAttribute("width")) ||
+      0;
     const h =
-      parseInt(el.style.height) || parseInt(el.getAttribute("height")) || 0;
+      Math.round(rect.height) ||
+      parseInt(el.style.height) ||
+      parseInt(el.getAttribute("height")) ||
+      0;
+    const visible = w > 0 && h > 0;
+    // data-ad-status="filled" 表示 Google 已填充广告
+    const filled = adStatus === "filled" || (visible && adStatus == null);
 
     let type = "Banner";
     if (fmt === "fluid" || fmt.includes("native") || fmt === "in-article") {
@@ -419,6 +409,14 @@ function scanAdsOnPage() {
       type = "Half Page";
     }
 
+    results.adsense.items.push({
+      index: i + 1,
+      type,
+      width: w,
+      height: h,
+      filled,
+      visible,
+    });
     results.adsense.count++;
     results.adsense.types[type] = (results.adsense.types[type] || 0) + 1;
   });
@@ -426,6 +424,18 @@ function scanAdsOnPage() {
   // Rendered AdSense iframes not inside <ins>
   document.querySelectorAll('iframe[id^="aswift_"]').forEach((iframe) => {
     if (!iframe.closest("ins.adsbygoogle")) {
+      const w = parseInt(iframe.width) || iframe.offsetWidth || 0;
+      const h = parseInt(iframe.height) || iframe.offsetHeight || 0;
+      const filled = w > 0 && h > 0;
+      const idx = results.adsense.items.length + 1;
+      results.adsense.items.push({
+        index: idx,
+        type: "Banner",
+        width: w,
+        height: h,
+        filled,
+        visible: filled,
+      });
       results.adsense.count++;
       results.adsense.types["Banner"] =
         (results.adsense.types["Banner"] || 0) + 1;
@@ -433,36 +443,57 @@ function scanAdsOnPage() {
   });
 
   // ── ADX / GOOGLE AD MANAGER ───────────────────────────────────────
-  const gptSet = new Set();
-
-  document.querySelectorAll('[id^="div-gpt-ad"]').forEach((el) => {
-    gptSet.add(el);
+  document.querySelectorAll('[id^="div-gpt-ad"]').forEach((el, i) => {
     let type = "Banner";
     const id = el.id || "";
+    let declaredW = 0,
+      declaredH = 0;
 
-    // Try to extract size from div ID (e.g. div-gpt-ad-728x90-0)
+    // 从 div ID 提取声明尺寸（如 div-gpt-ad-728x90-0）
     const sizeMatch = id.match(/[_-](\d{2,4})x(\d{2,4})/);
     if (sizeMatch) {
-      const w = parseInt(sizeMatch[1]);
-      const h = parseInt(sizeMatch[2]);
-      if (w === 1 && h === 1) return;
-      if (w >= 640 && h >= 400) type = "Interstitial";
-      else if (h === 90 || h === 60 || w >= 728) type = "Leaderboard";
-      else if (w === 300 && h === 600) type = "Half Page";
-      else if (w === 300 || (w >= 250 && h >= 200)) type = "Rectangle";
-      else if (w === 160 || w === 120) type = "Skyscraper";
-      else if (h <= 60) type = "Mobile Banner";
-    } else {
-      // Fall back to rendered iframe dimensions
-      const iframe = el.querySelector('iframe[id^="google_ads_iframe"]');
-      if (iframe) {
-        const fw = iframe.width || iframe.style.width;
-        const fh = iframe.height || iframe.style.height;
-        if (parseInt(fw) >= 728) type = "Leaderboard";
-        else if (parseInt(fw) === 300) type = "Rectangle";
-      }
+      declaredW = parseInt(sizeMatch[1]);
+      declaredH = parseInt(sizeMatch[2]);
+      if (declaredW === 1 && declaredH === 1) return;
+      if (declaredW >= 640 && declaredH >= 400) type = "Interstitial";
+      else if (declaredH === 90 || declaredH === 60 || declaredW >= 728)
+        type = "Leaderboard";
+      else if (declaredW === 300 && declaredH === 600) type = "Half Page";
+      else if (declaredW === 300 || (declaredW >= 250 && declaredH >= 200))
+        type = "Rectangle";
+      else if (declaredW === 160 || declaredW === 120) type = "Skyscraper";
+      else if (declaredH <= 60) type = "Mobile Banner";
     }
 
+    // 从已渲染的 iframe 获取实际尺寸
+    const iframe = el.querySelector('iframe[id^="google_ads_iframe"]');
+    const iframeW = iframe
+      ? parseInt(iframe.width) || iframe.offsetWidth || 0
+      : 0;
+    const iframeH = iframe
+      ? parseInt(iframe.height) || iframe.offsetHeight || 0
+      : 0;
+
+    if (!sizeMatch && iframe) {
+      if (iframeW >= 728) type = "Leaderboard";
+      else if (iframeW === 300) type = "Rectangle";
+    }
+
+    const rect = el.getBoundingClientRect();
+    const w = iframeW || declaredW || Math.round(rect.width);
+    const h = iframeH || declaredH || Math.round(rect.height);
+    // iframe 存在且有尺寸 → 广告已填充
+    const filled = iframeW > 0 && iframeH > 0;
+    const visible = Math.round(rect.width) > 0 && Math.round(rect.height) > 0;
+
+    results.adx.items.push({
+      index: i + 1,
+      type,
+      width: w,
+      height: h,
+      filled,
+      visible,
+    });
     results.adx.count++;
     results.adx.types[type] = (results.adx.types[type] || 0) + 1;
   });
@@ -472,6 +503,18 @@ function scanAdsOnPage() {
     .querySelectorAll('iframe[name^="google_ads_iframe_"]')
     .forEach((iframe) => {
       if (!iframe.closest('[id^="div-gpt-ad"]')) {
+        const w = parseInt(iframe.width) || iframe.offsetWidth || 0;
+        const h = parseInt(iframe.height) || iframe.offsetHeight || 0;
+        const filled = w > 0 && h > 0;
+        const idx = results.adx.items.length + 1;
+        results.adx.items.push({
+          index: idx,
+          type: "Banner",
+          width: w,
+          height: h,
+          filled,
+          visible: filled,
+        });
         results.adx.count++;
         results.adx.types["Banner"] = (results.adx.types["Banner"] || 0) + 1;
       }
@@ -487,6 +530,18 @@ function scanAdsOnPage() {
         !iframe.closest('[id^="div-gpt-ad"]') &&
         !iframe.name?.startsWith("google_ads_iframe_")
       ) {
+        const w = parseInt(iframe.width) || iframe.offsetWidth || 0;
+        const h = parseInt(iframe.height) || iframe.offsetHeight || 0;
+        const filled = w > 0 && h > 0;
+        const idx = results.adx.items.length + 1;
+        results.adx.items.push({
+          index: idx,
+          type: "Banner",
+          width: w,
+          height: h,
+          filled,
+          visible: filled,
+        });
         results.adx.count++;
         results.adx.types["Banner"] = (results.adx.types["Banner"] || 0) + 1;
       }
@@ -497,18 +552,28 @@ function scanAdsOnPage() {
     try {
       if (window.googletag && typeof googletag.pubads === "function") {
         const slots = googletag.pubads().getSlots();
-        slots.forEach((slot) => {
+        slots.forEach((slot, i) => {
           let type = "Banner";
+          let sw = 0,
+            sh = 0;
           try {
             const sizes = slot.getSizes(window.innerWidth, window.innerHeight);
             if (Array.isArray(sizes) && sizes.length > 0 && sizes[0].getWidth) {
-              const w = sizes[0].getWidth();
-              const h = sizes[0].getHeight();
-              if (w >= 728) type = "Leaderboard";
-              else if (w === 300 && h === 600) type = "Half Page";
-              else if (w === 300) type = "Rectangle";
+              sw = sizes[0].getWidth();
+              sh = sizes[0].getHeight();
+              if (sw >= 728) type = "Leaderboard";
+              else if (sw === 300 && sh === 600) type = "Half Page";
+              else if (sw === 300) type = "Rectangle";
             }
           } catch (_) {}
+          results.adx.items.push({
+            index: i + 1,
+            type,
+            width: sw,
+            height: sh,
+            filled: false,
+            visible: false,
+          });
           results.adx.count++;
           results.adx.types[type] = (results.adx.types[type] || 0) + 1;
         });
